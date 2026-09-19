@@ -10,15 +10,23 @@ ID_TO_LABEL = {value: key for key, value in LABEL_TO_ID.items()}
 
 
 def add_direction_labels(
-    frame: pd.DataFrame, horizon: int = 5, threshold: float = 0.001
+    frame: pd.DataFrame,
+    horizon: int = 5,
+    threshold: float = 0.001,
+    buy_threshold: float | None = None,
+    sell_threshold: float | None = None,
 ) -> pd.DataFrame:
     """依未來報酬建立 BUY、HOLD、SELL 三分類標籤。"""
     if horizon < 1 or threshold < 0:
         raise ValueError("horizon 必須為正數，threshold 不可為負數")
+    buy_threshold = threshold if buy_threshold is None else buy_threshold
+    sell_threshold = threshold if sell_threshold is None else sell_threshold
+    if buy_threshold < 0 or sell_threshold < 0:
+        raise ValueError("buy_threshold 與 sell_threshold 不可為負數")
     result = frame.copy()
     result["future_return"] = result["close"].shift(-horizon) / result["close"] - 1
     result["label"] = np.select(
-        [result["future_return"] > threshold, result["future_return"] < -threshold],
+        [result["future_return"] > buy_threshold, result["future_return"] < -sell_threshold],
         ["BUY", "SELL"],
         default="HOLD",
     )

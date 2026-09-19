@@ -35,8 +35,8 @@ def train_lstm(
         raise ValueError("epochs 與 batch_size 必須為正數")
     device = torch.device("cpu")
     dataset = torch.utils.data.TensorDataset(
-        torch.as_tensor(features, dtype=torch.float32),
-        torch.as_tensor(labels, dtype=torch.long),
+        torch.as_tensor(np.array(features, dtype=np.float32, copy=True)),
+        torch.as_tensor(np.array(labels, dtype=np.int64, copy=True)),
     )
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
     model = model.to(device)
@@ -51,6 +51,51 @@ def train_lstm(
             loss.backward()
             optimizer.step()
     return model
+
+
+def train_lstm_history(
+    model: "LSTMClassifier",
+    train_features: np.ndarray,
+    train_labels: np.ndarray,
+    validation_features: np.ndarray,
+    validation_labels: np.ndarray,
+    epochs: int,
+    learning_rate: float = 0.001,
+    batch_size: int = 32,
+) -> tuple["LSTMClassifier", dict[str, list[float]]]:
+    """在 CPU 上訓練 LSTM，並記錄 training/validation loss。"""
+    if torch is None:
+        raise ImportError("使用 train_lstm_history 前請安裝 PyTorch")
+    if epochs < 1 or batch_size < 1:
+        raise ValueError("epochs 與 batch_size 必須為正數")
+    device = torch.device("cpu")
+    train_dataset = torch.utils.data.TensorDataset(
+        torch.as_tensor(np.array(train_features, dtype=np.float32, copy=True)),
+        torch.as_tensor(np.array(train_labels, dtype=np.int64, copy=True)),
+    )
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+    validation_inputs = torch.as_tensor(np.array(validation_features, dtype=np.float32, copy=True)).to(device)
+    validation_targets = torch.as_tensor(np.array(validation_labels, dtype=np.int64, copy=True)).to(device)
+    model = model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = nn.CrossEntropyLoss()
+    history = {"training_loss": [], "validation_loss": []}
+    for _ in range(epochs):
+        model.train()
+        training_losses = []
+        for batch_features, batch_labels in train_loader:
+            optimizer.zero_grad()
+            outputs = model(batch_features.to(device))
+            loss = criterion(outputs, batch_labels.to(device))
+            loss.backward()
+            optimizer.step()
+            training_losses.append(float(loss.detach().cpu()))
+        model.eval()
+        with torch.no_grad():
+            validation_loss = criterion(model(validation_inputs), validation_targets)
+        history["training_loss"].append(float(np.mean(training_losses)))
+        history["validation_loss"].append(float(validation_loss.cpu()))
+    return model, history
 
 
 if nn is not None:
