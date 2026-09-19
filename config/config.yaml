@@ -1,0 +1,41 @@
+project:
+  name: tw_stock_intraday_ml
+  random_seed: 42
+  bar_interval: 1min
+
+data:
+  source: mock
+  mock_rows: 2000
+  symbol: MOCK.TW
+  horizon_bars: 5
+  label_threshold: 0.001
+  csv_path: data/sample_ohlcv.csv
+
+features:
+  ma_windows: [5, 20]
+  ema_windows: [5, 20]
+  rsi_window: 14
+  atr_window: 14
+  volatility_window: 20
+  volume_window: 20
+
+split:
+  train_ratio: 0.7
+  validation_ratio: 0.15
+  test_ratio: 0.15
+  sequence_length: 30
+
+models:
+  random_forest_estimators: 100
+  lstm_hidden_size: 32
+  lstm_layers: 1
+  epochs: 5
+  learning_rate: 0.001
+  batch_size: 32
+
+backtest:
+  initial_cash: 1000000
+  fee_rate: 0.001425
+  tax_rate: 0.003
+  slippage_rate: 0.0005
+  position_size: 1.0
